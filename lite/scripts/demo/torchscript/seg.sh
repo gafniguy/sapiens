@@ -7,15 +7,29 @@ MODE='torchscript' ## original. no optimizations (slow). full precision inferenc
 # MODE='bfloat16' ## A100 gpus. faster inference at bfloat16
 
 SAPIENS_CHECKPOINT_ROOT=$SAPIENS_CHECKPOINT_ROOT/$MODE
-
+SAPIENS_CHECKPOINT_ROOT=$SAPIENS_ROOT/pretrain/
 #----------------------------set your input and output directories----------------------------------------------
-INPUT='../pose/demo/data/itw_videos/reel1'
-OUTPUT="/home/${USER}/Desktop/sapiens/seg/Outputs/vis/itw_videos/reel1_seg"
+# INPUT='/home/paperspace/sapiens/pose/demo/data/itw_videos/reel1'
+# INPUT='/home/paperspace/sapiens/vids/invideo_subject1'
+INPUT='/home/paperspace/sapiens/vids/subject2'
 
+
+#gsutil cp gs://pipio-avatar-ingestion-content-prod/5098b2fea50f45729fcb3492600df6e4/1/og.mp4 ~/sapiens/vids/subject2/
+#unzip -o $INPUT/*.zip -d $INPUT/
+
+
+# OUTPUT="/home/${USER}/sapiens/Output/invideo_subject1"
+OUTPUT="/home/paperspace/sapiens/Output/subject2"
+
+echo $INPUT
 #--------------------------MODEL CARD---------------
 # MODEL_NAME='sapiens_0.3b'; CHECKPOINT=$SAPIENS_CHECKPOINT_ROOT/seg/checkpoints/sapiens_0.3b/sapiens_0.3b_goliath_best_goliath_mIoU_7673_epoch_194_$MODE.pt2
-MODEL_NAME='sapiens_0.6b'; CHECKPOINT=$SAPIENS_CHECKPOINT_ROOT/seg/checkpoints/sapiens_0.6b/sapiens_0.6b_goliath_best_goliath_mIoU_7777_epoch_178_$MODE.pt2
-# MODEL_NAME='sapiens_1b'; CHECKPOINT=$SAPIENS_CHECKPOINT_ROOT/seg/checkpoints/sapiens_1b/sapiens_1b_goliath_best_goliath_mIoU_7994_epoch_151_$MODE.pt2
+#MODEL_NAME='sapiens_0.6b'; CHECKPOINT=$SAPIENS_CHECKPOINT_ROOT/seg/checkpoints/sapiens_0.6b/sapiens_0.6b_goliath_best_goliath_mIoU_7777_epoch_178_$MODE.pt2
+#MODEL_NAME='sapiens_0.6b'; CHECKPOINT=/home/paperspace/sapiens/pretrain/checkpoints/sapiens_0.6b_goliath_best_goliath_mIoU_7777_epoch_178_torchscript.pt2
+
+
+# MODEL_NAME='sapiens_1b'; CHECKPOINT=$SAPIENS_CHECKPOINT_ROOT/seg/checkpoints/sapiens_1b/sapiens_1b_goliath_best_goliath_mIoU_7994_epoch_151_torchscript.pt2
+MODEL_NAME='sapiens_1b'; CHECKPOINT=/home/paperspace/sapiens/pretrain/checkpoints/sapiens_1b_goliath_best_goliath_mIoU_7994_epoch_151_torchscript.pt2	
 # MODEL_NAME='sapiens_2b'; CHECKPOINT=$SAPIENS_CHECKPOINT_ROOT/seg/checkpoints/sapiens_2b/sapiens_2b_goliath_best_goliath_mIoU_8131_epoch_200_$MODE.pt2
 
 OUTPUT=$OUTPUT/$MODEL_NAME
@@ -25,7 +39,7 @@ RUN_FILE='demo/vis_seg.py'
 
 ## number of inference jobs per gpu, total number of gpus and gpu ids
 # JOBS_PER_GPU=4; TOTAL_GPUS=8; VALID_GPU_IDS=(0 1 2 3 4 5 6 7)
-JOBS_PER_GPU=1; TOTAL_GPUS=1; VALID_GPU_IDS=(0)
+JOBS_PER_GPU=1; TOTAL_GPUS=4; VALID_GPU_IDS=(0 1 2 3)
 
 BATCH_SIZE=8
 
@@ -41,6 +55,8 @@ fi
 
 # Count images and calculate the number of images per text file
 NUM_IMAGES=$(wc -l < "${IMAGE_LIST}")
+
+
 if ((TOTAL_GPUS > NUM_IMAGES / BATCH_SIZE)); then
   TOTAL_JOBS=$(( (NUM_IMAGES + BATCH_SIZE - 1) / BATCH_SIZE))
   IMAGES_PER_FILE=$((BATCH_SIZE))
@@ -73,9 +89,9 @@ for ((i=0; i<TOTAL_JOBS; i++)); do
     ${CHECKPOINT} \
     --input "${INPUT}/image_paths_$((i+1)).txt" \
     --batch-size="${BATCH_SIZE}" \
-    --output-root="${OUTPUT}" ## add & to process in background
+    --output-root="${OUTPUT}"   & ## add & to process in background
   # Allow a short delay between starting each job to reduce system load spikes
-  sleep 1
+  sleep 1  
 done
 
 # Wait for all background processes to finish

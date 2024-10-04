@@ -21,13 +21,22 @@ import torchvision
 from adhoc_image_dataset import AdhocImageDataset
 from classes_and_palettes import GOLIATH_CLASSES, GOLIATH_PALETTE
 from tqdm import tqdm
-
+import json
 from worker_pool import WorkerPool
-
 torchvision.disable_beta_transforms_warning()
 
 timings = {}
 BATCH_SIZE = 32
+
+class_dict = {
+    0: 'Background', 1: 'Apparel', 2: 'Face_Neck', 3: 'Hair', 4: 'Left_Foot', 5: 'Left_Hand', 
+    6: 'Left_Lower_Arm', 7: 'Left_Lower_Leg', 8: 'Left_Shoe', 9: 'Left_Sock', 
+    10: 'Left_Upper_Arm', 11: 'Left_Upper_Leg', 12: 'Lower_Clothing', 13: 'Right_Foot', 
+    14: 'Right_Hand', 15: 'Right_Lower_Arm', 16: 'Right_Lower_Leg', 17: 'Right_Shoe', 
+    18: 'Right_Sock', 19: 'Right_Upper_Arm', 20: 'Right_Upper_Leg', 21: 'Torso', 
+    22: 'Upper_Clothing', 23: 'Lower_Lip', 24: 'Upper_Lip', 25: 'Lower_Teeth', 
+    26: 'Upper_Teeth', 27: 'Tongue'
+}
 
 
 def _demo_mm_inputs(batch_size, input_shape):
@@ -117,6 +126,119 @@ def img_save_and_viz(
     vis_image = cv2.cvtColor(vis_image, cv2.COLOR_RGB2BGR)
     vis_image = np.concatenate([image, vis_image], axis=1)
     cv2.imwrite(output_path, vis_image)
+
+
+
+
+
+def img_save_and_viz_per_class(
+    image, result, output_path, classes,palette, name="sapiens1b", 
+    opacity=0.5, threshold=0.3, frame_idx=None
+):    
+
+    frame_idx = os.path.basename(output_path).split('.')[0]  # Assumes frame number is in the name
+    output_dir = os.path.dirname(output_path)
+    # Ensure output directories exist
+    os.makedirs(f"{output_dir}/blend_mask/visualize", exist_ok=True)
+    os.makedirs(f"{output_dir}/blend_mask", exist_ok=True)
+
+    # Example of class label to name mapping
+    class_dict = {
+        0: 'Background', 1: 'Apparel', 2: 'Face_Neck', 3: 'Hair', 4: 'Left_Foot', 5: 'Left_Hand', 
+        6: 'Left_Lower_Arm', 7: 'Left_Lower_Leg', 8: 'Left_Shoe', 9: 'Left_Sock', 
+        10: 'Left_Upper_Arm', 11: 'Left_Upper_Leg', 12: 'Lower_Clothing', 13: 'Right_Foot', 
+        14: 'Right_Hand', 15: 'Right_Lower_Arm', 16: 'Right_Lower_Leg', 17: 'Right_Shoe', 
+        18: 'Right_Sock', 19: 'Right_Upper_Arm', 20: 'Right_Upper_Leg', 21: 'Torso', 
+        22: 'Upper_Clothing', 23: 'Lower_Lip', 24: 'Upper_Lip', 25: 'Lower_Teeth', 
+        26: 'Upper_Teeth', 27: 'Tongue'
+    }
+
+    # print pallete and its length 
+    # print (f"palette: {palette}")
+    # print (f"palette length: {len(palette)}")
+
+    # Convert image tensor to numpy (assuming BGR format)
+    image = image.data.numpy()  # BGR image
+
+    # Resizing segmentation result to match the input image size
+    seg_logits = F.interpolate(result.unsqueeze(0), size=image.shape[:2], mode="bilinear").squeeze(0)
+
+    # Determine if it's binary or multi-class segmentation
+    if seg_logits.shape[0] > 1:
+        # Multi-class segmentation: Use argmax to get the predicted class for each pixel
+        pred_sem_seg = seg_logits.argmax(dim=0).cpu().numpy()  # Get predicted class (argmax over channels)
+    else:
+        # Binary segmentation: Use sigmoid and threshold
+        seg_logits = seg_logits.sigmoid()
+        pred_sem_seg = (seg_logits > threshold).to(seg_logits).cpu().numpy()
+
+    # Now, create and save the argmax-colored image (palette-colored segmentation)
+    num_classes = len(class_dict) 
+    sem_seg = pred_sem_seg
+    ids = np.unique(sem_seg)[::-1]
+    legal_indices = ids < num_classes
+    ids = ids[legal_indices]
+    labels = np.array(ids, dtype=np.int64)
+
+    # Get the colors from the palette based on labels
+    colors = [palette[label] for label in labels]
+
+    # Create a mask for visualization
+    mask = np.zeros((image.shape[0], image.shape[1], 3), dtype=np.uint8)  # Initialize the mask
+
+    # Assign colors from the palette to the mask based on predicted segmentation
+    for label, color in zip(labels, colors):
+        mask[sem_seg == label] = np.array(color, dtype=np.uint8)  # Ensure color is an array
+
+    # Save the colored argmax image (segmentation) and overlay with original image
+    colored_output_path = f"{output_dir}/blend_mask/visualize/{str(frame_idx).zfill(5)}_{name}_argmax_colored.jpg"
+    overlay_output_path = f"{output_dir}/blend_mask/visualize/{str(frame_idx).zfill(5)}_{name}_overlay.jpg"
+
+    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    vis_image = (image_rgb * (1 - opacity) + mask * opacity).astype(np.uint8)
+    vis_concat_image = np.concatenate([image, vis_image], axis=1)
+
+    cv2.imwrite(colored_output_path, mask)  # Save segmentation
+    cv2.imwrite(overlay_output_path, vis_concat_image)  # Save overlayed image
+
+    # Save confidence heatmap (for argmax) as both RGB and grayscale
+    confidence_argmax = seg_logits.softmax(dim=0).max(dim=0).values.cpu().numpy()
+    confidence_rgb = cv2.applyColorMap((confidence_argmax * 255).astype(np.uint8), cv2.COLORMAP_JET)
+    confidence_gray = (confidence_argmax * 255).astype(np.uint8)
+
+    confidence_rgb_output_path = f"{output_dir}/blend_mask/visualize/{str(frame_idx).zfill(5)}_{name}_confidence_rgb.jpg"
+    confidence_gray_output_path = f"{output_dir}/blend_mask/{str(frame_idx).zfill(5)}_{name}_confidence_gray.jpg"
+    cv2.imwrite(confidence_rgb_output_path, confidence_rgb)
+    cv2.imwrite(confidence_gray_output_path, confidence_gray)
+
+    # Use the class index values directly for the grayscale image. Each pixel is the id of predicted vlass.
+    grayscale_image_predictions = pred_sem_seg.astype(np.float32)
+    grayscale_output_path = f"{output_dir}/blend_mask/{str(frame_idx).zfill(5)}_{name}_argmax_grayscale.png"
+    cv2.imwrite(grayscale_output_path, grayscale_image_predictions.astype(np.uint8))
+
+    # Save the class dictionary to a JSON file
+    class_dict_output_path = f"{output_dir}/blend_mask/class_dict.json"
+    with open(class_dict_output_path, 'w') as json_file:
+        json.dump(class_dict, json_file, indent=4)
+
+    seg_logits = seg_logits.softmax(dim=0)
+    # Process each class individually for binary masks and confidence maps
+    for class_idx, class_name in class_dict.items():
+        # Create a binary mask based on whether the argmax class matches the current class
+        class_mask = (pred_sem_seg == class_idx).astype(np.uint8)  # Mark as 1 if argmax matches class_idx
+
+        # Save binary mask (grayscale image)
+        mask_output_path = os.path.join(output_dir,"blend_mask", f"{str(frame_idx).zfill(5)}_{name}_{class_name}_mask.jpg")
+        cv2.imwrite(mask_output_path, class_mask * 255)  # Save as binary (0 or 255)
+
+        # Save confidence map (grayscale image, raw logit values)
+        class_prob = seg_logits[class_idx]  # Get logits for the current class
+        confidence_map = class_prob.cpu().numpy()
+        confidence_map_rescaled = (confidence_map * 255).astype(np.uint8)  # Rescale for visualization
+        confidence_output_path = os.path.join(output_dir,"blend_mask", f"{str(frame_idx).zfill(5)}_{name}_{class_name}_confidence.jpg")
+        cv2.imwrite(confidence_output_path, confidence_map_rescaled)
+
+
 
 def load_model(checkpoint, use_torchscript=False):
     if use_torchscript:
@@ -225,7 +347,8 @@ def main():
     BATCH_SIZE = args.batch_size
 
     n_batches = (len(image_names) + args.batch_size - 1) // args.batch_size
-
+    print (f"Running inference on {len(image_names)} images in {n_batches} batches")
+    print (f"image sizes {input_shape}")
     inference_dataset = AdhocImageDataset(
         [os.path.join(input_dir, img_name) for img_name in image_names],
         (input_shape[1], input_shape[2]),
@@ -241,7 +364,7 @@ def main():
     total_results = []
     image_paths = []
     img_save_pool = WorkerPool(
-        img_save_and_viz, processes=max(min(args.batch_size, cpu_count()) // 2, 4)
+        img_save_and_viz_per_class, processes=max(min(args.batch_size, cpu_count()) // 2, 4)
     )
     for batch_idx, (batch_image_name, batch_orig_imgs, batch_imgs) in tqdm(
         enumerate(inference_dataloader), total=len(inference_dataloader)
