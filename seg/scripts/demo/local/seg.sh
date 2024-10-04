@@ -11,8 +11,6 @@ OUTPUT="/home/${USER}/Desktop/sapiens/seg/Outputs/vis/itw_videos/reel1_seg"
 # MODEL_NAME='sapiens_0.3b'; CHECKPOINT=$SAPIENS_CHECKPOINT_ROOT/seg/checkpoints/sapiens_0.3b/sapiens_0.3b_goliath_best_goliath_mIoU_7673_epoch_194.pth
 # MODEL_NAME='sapiens_0.6b'; CHECKPOINT=$SAPIENS_CHECKPOINT_ROOT/seg/checkpoints/sapiens_0.6b/sapiens_0.6b_goliath_best_goliath_mIoU_7777_epoch_178.pth
 MODEL_NAME='sapiens_1b'; CHECKPOINT=$SAPIENS_CHECKPOINT_ROOT/seg/checkpoints/sapiens_1b/sapiens_1b_goliath_best_goliath_mIoU_7994_epoch_151.pth
-MODEL_NAME='sapiens_1b'; CHECKPOINT=/home/paperspace/sapiens/pretrain/checkpoints/sapiens_1b_epoch_173_torchscript.pt2
-# MODEL_NAME='sapiens_2b'; CHECKPOINT=$SAPIENS_CHECKPOINT_ROOT/seg/checkpoints/sapiens_2b/sapiens_2b_goliath_best_goliath_mIoU_8131_epoch_200.pth
 
 DATASET='goliath'
 MODEL="${MODEL_NAME}_${DATASET}-1024x768"
@@ -23,7 +21,7 @@ OUTPUT=$OUTPUT/$MODEL_NAME
 RUN_FILE='demo/demo_seg_vis.py'
 
 ## number of inference jobs per gpu, total number of gpus and gpu ids
-JOBS_PER_GPU=1; TOTAL_GPUS=4; VALID_GPU_IDS=(0 1 2 3)
+JOBS_PER_GPU=1; TOTAL_GPUS=1; VALID_GPU_IDS=(0 1 2 3 4 5 6 7)
 TOTAL_JOBS=$((JOBS_PER_GPU * TOTAL_GPUS))
 
 # Find all images and sort them, then write to a temporary text file

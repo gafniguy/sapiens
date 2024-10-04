@@ -23,7 +23,7 @@ Sapiens-Lite is our optimized "inference-only" solution, offering:
 
 - Note to Windows users: Please use the python scripts in `./demo` instead of `./scripts`.
 
-- Please download the checkpoints from [hugging-face](https://huggingface.co/facebook/sapiens/tree/main/sapiens_lite_host).\
+- Please download the checkpoints from [hugging-face](https://huggingface.co/facebook/sapiens).\
   Checkpoints are suffixed with "_$MODE.pt2".\
   You can be selective about only downloading the checkpoints of interest.\
   Set `$SAPIENS_LITE_CHECKPOINT_ROOT` to the path of `sapiens_lite_host/$MODE`. Checkpoint directory structure:

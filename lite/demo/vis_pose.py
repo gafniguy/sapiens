@@ -338,10 +338,10 @@ def main():
         num_workers=max(min(args.batch_size, cpu_count()) // 4, 4),
     )
     pose_preprocess_pool = WorkerPool(
-        preprocess_pose, processes=max(min(args.batch_size, cpu_count()) // 4, 4)
+        preprocess_pose, processes=max(min(args.batch_size, cpu_count()), 1)
     )
     img_save_pool = WorkerPool(
-        img_save_and_viz, processes=max(min(args.batch_size, cpu_count()) // 4, 4)
+        img_save_and_viz, processes=max(min(args.batch_size, cpu_count()), 1)
     )
 
     KPTS_COLORS = COCO_WHOLEBODY_KPTS_COLORS  ## 133 keypoints

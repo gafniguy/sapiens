@@ -114,7 +114,7 @@ data
 *.pkl.json
 *.log.json
 docs/modelzoo_statistics.md
-mmdet/.mim
+# mmdet/.mim
 work_dirs/
 
 # Pytorch

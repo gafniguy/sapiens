@@ -55,8 +55,6 @@ fi
 
 # Count images and calculate the number of images per text file
 NUM_IMAGES=$(wc -l < "${IMAGE_LIST}")
-
-
 if ((TOTAL_GPUS > NUM_IMAGES / BATCH_SIZE)); then
   TOTAL_JOBS=$(( (NUM_IMAGES + BATCH_SIZE - 1) / BATCH_SIZE))
   IMAGES_PER_FILE=$((BATCH_SIZE))

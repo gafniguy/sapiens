@@ -21,13 +21,20 @@ import torchvision
 from adhoc_image_dataset import AdhocImageDataset
 from classes_and_palettes import GOLIATH_CLASSES, GOLIATH_PALETTE
 from tqdm import tqdm
+<<<<<<< HEAD
 import json
 from worker_pool import WorkerPool
+=======
+
+from worker_pool import WorkerPool
+
+>>>>>>> origin/main
 torchvision.disable_beta_transforms_warning()
 
 timings = {}
 BATCH_SIZE = 32
 
+<<<<<<< HEAD
 class_dict = {
     0: 'Background', 1: 'Apparel', 2: 'Face_Neck', 3: 'Hair', 4: 'Left_Foot', 5: 'Left_Hand', 
     6: 'Left_Lower_Arm', 7: 'Left_Lower_Leg', 8: 'Left_Shoe', 9: 'Left_Sock', 
@@ -48,6 +55,8 @@ def _demo_mm_inputs(batch_size, input_shape):
         imgs = torch.Tensor(imgs).cuda()
     return imgs
 
+=======
+>>>>>>> origin/main
 
 def warmup_model(model, batch_size):
     imgs = torch.randn(batch_size, 3, 1024, 768).to(dtype=model.dtype).cuda()
@@ -359,12 +368,12 @@ def main():
         inference_dataset,
         batch_size=args.batch_size,
         shuffle=False,
-        num_workers=max(min(args.batch_size, cpu_count()) // 2, 4),
+        num_workers=max(min(args.batch_size, cpu_count()), 1),
     )
     total_results = []
     image_paths = []
     img_save_pool = WorkerPool(
-        img_save_and_viz_per_class, processes=max(min(args.batch_size, cpu_count()) // 2, 4)
+        img_save_and_viz, processes=max(min(args.batch_size, cpu_count()), 1)
     )
     for batch_idx, (batch_image_name, batch_orig_imgs, batch_imgs) in tqdm(
         enumerate(inference_dataloader), total=len(inference_dataloader)
